@@ -217,10 +217,6 @@
 
 
 
-
-
-
-
 import streamlit as st
 import json
 import os
@@ -370,23 +366,28 @@ def retrieve_page():
         st.info("No data available.")
         return
 
+    # Provide a selectbox for choosing saved data
     options = [f"{idx + 1}. Saved on: {entry['timestamp']}" for idx, entry in enumerate(user_data)]
     idx = st.selectbox("Choose Entry", options)
 
+    # Get the selected entry's data
     selected_entry = user_data[int(idx.split('.')[0]) - 1]
     st.caption(f"Saved on: {selected_entry['timestamp']}")
 
     passkey = st.text_input("Enter Passkey", type="password")
 
+    # Attempt decryption when the button is pressed
     if st.button("Decrypt"):
         if hash_pass(passkey) == selected_entry["passkey"]:
             decrypted = fernet.decrypt(selected_entry["encrypted_text"].encode()).decode()
             st.success(f"Decrypted Text: {decrypted}")
             st.session_state.attempts = 0  # Reset attempts after successful decryption
+            st.session_state.changed = True
         else:
             st.session_state.attempts += 1
             st.error(f"Wrong passkey. Attempts left: {3 - st.session_state.attempts}")
     
+    # Option to delete an entry
     if st.button("Delete Entry"):
         user_data.pop(int(idx.split('.')[0]) - 1)
         save_users()
@@ -394,13 +395,14 @@ def retrieve_page():
         st.session_state.changed = True
 
 def lockout_page():
-    elapsed = time.time() - st.session_state.lockout_time
-    if elapsed < LOCKOUT_DURATION:
-        st.error(f"🛑 Too many wrong attempts. Please wait {int(LOCKOUT_DURATION - elapsed)} seconds.")
-    else:
+    st.title("🔒 Locked Out")
+    st.error("Too many failed attempts. Please try again after 60 seconds.")
+
+    if time.time() - st.session_state.lockout_time >= 60:
         st.session_state.attempts = 0
-        st.session_state.page = "retrieve"
-        st.rerun()
+        st.session_state.page = "home"
+        st.success("You can try again now. Returning to Home page.")
+        st.session_state.changed = True
 
 # ---------- SIDEBAR ----------
 def sidebar():
